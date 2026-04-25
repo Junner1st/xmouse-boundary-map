@@ -1,0 +1,16 @@
+# Omit this file to auto-map horizontally adjacent monitors by relative resolution.
+poll_interval_ms = 8
+warp_cooldown_ms = 50
+ignore_drag = true
+
+[[edge]]
+from = "DP-1"
+to = "HDMI-1"
+side = "right"
+map = "relative-resolution"
+
+[[edge]]
+from = "HDMI-1"
+to = "DP-1"
+side = "left"
+map = "relative-resolution"
