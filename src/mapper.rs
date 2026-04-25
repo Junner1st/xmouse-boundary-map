@@ -1,7 +1,9 @@
 use anyhow::{Context, Result};
 use tracing::warn;
 
-use crate::geometry::{EdgeMapping, MappingMode, Monitor, Point, PointerState, Side};
+use crate::geometry::{EdgeMapping, MappingMode, Monitor, Point, PointerState, RawMotion, Side};
+
+const EDGE_GRACE_PX: i32 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MapOutcome {
@@ -58,6 +60,39 @@ impl BoundaryMapper {
             Ok(point) => MapOutcome::Warp(point),
             Err(error) => {
                 warn!(?error, "failed to map monitor crossing");
+                MapOutcome::Noop
+            }
+        }
+    }
+
+    pub fn map_blocked_motion(&self, pointer: &PointerState, motion: RawMotion) -> MapOutcome {
+        let Some(from) = self.monitor_at(pointer.position) else {
+            return MapOutcome::Noop;
+        };
+
+        let side = if motion.dx > 0.0 && pointer.position.x >= from.right() - EDGE_GRACE_PX {
+            Side::Right
+        } else if motion.dx < 0.0 && pointer.position.x <= from.x + EDGE_GRACE_PX {
+            Side::Left
+        } else {
+            return MapOutcome::Noop;
+        };
+
+        let Some(edge) = self
+            .edges
+            .iter()
+            .find(|edge| edge.from == from.name && edge.side == side)
+        else {
+            return MapOutcome::Noop;
+        };
+        let Some(to) = self.monitors.iter().find(|monitor| monitor.name == edge.to) else {
+            return MapOutcome::Noop;
+        };
+
+        match target_point(edge, from, to, pointer.position) {
+            Ok(point) => MapOutcome::Warp(point),
+            Err(error) => {
+                warn!(?error, "failed to map blocked monitor edge");
                 MapOutcome::Noop
             }
         }
@@ -282,5 +317,26 @@ mod tests {
         );
 
         assert_eq!(outcome, MapOutcome::Noop);
+    }
+
+    #[test]
+    fn maps_blocked_motion_from_large_to_small_monitor() {
+        let mapper = BoundaryMapper::new(
+            vec![
+                monitor("DP-1", 0, 0, 3840, 2160),
+                monitor("HDMI-1", 3840, 0, 1920, 1080),
+            ],
+            Vec::new(),
+        );
+
+        let outcome = mapper.map_blocked_motion(
+            &PointerState {
+                position: Point { x: 3839, y: 1620 },
+                buttons_down: false,
+            },
+            RawMotion { dx: 3.0, dy: 0.0 },
+        );
+
+        assert_eq!(outcome, MapOutcome::Warp(Point { x: 3840, y: 810 }));
     }
 }

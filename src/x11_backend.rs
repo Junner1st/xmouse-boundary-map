@@ -1,11 +1,15 @@
 use anyhow::{Context, Result};
 use x11rb::connection::Connection;
+use x11rb::protocol::Event;
 use x11rb::protocol::randr::{Connection as RandrConnection, ConnectionExt as RandrExt};
 use x11rb::protocol::xproto::{ConnectionExt as XprotoExt, KeyButMask};
+use x11rb::protocol::xinput::{
+    ConnectionExt as XinputExt, Device, EventMask, Fp3232, RawMotionEvent, XIEventMask,
+};
 use x11rb::rust_connection::RustConnection;
 use x11rb::NONE;
 
-use crate::geometry::{Monitor, Point, PointerState};
+use crate::geometry::{Monitor, Point, PointerState, RawMotion};
 
 pub struct X11Backend {
     conn: RustConnection,
@@ -88,6 +92,34 @@ impl X11Backend {
         })
     }
 
+    pub fn enable_raw_motion(&self) -> Result<()> {
+        self.conn
+            .xinput_xi_query_version(2, 0)?
+            .reply()
+            .context("query XInput2 version")?;
+
+        let mask = EventMask {
+            deviceid: u16::from(Device::ALL_MASTER),
+            mask: vec![XIEventMask::RAW_MOTION],
+        };
+
+        self.conn
+            .xinput_xi_select_events(self.root, &[mask])?
+            .check()
+            .context("select XI2 raw motion events")?;
+        self.conn.flush().context("flush XInput2 selection")?;
+        Ok(())
+    }
+
+    pub fn wait_raw_motion(&self) -> Result<RawMotion> {
+        loop {
+            let event = self.conn.wait_for_event().context("wait for X11 event")?;
+            if let Event::XinputRawMotion(event) = event {
+                return Ok(raw_motion_delta(&event));
+            }
+        }
+    }
+
     pub fn warp_pointer(&self, point: Point) -> Result<()> {
         self.conn
             .warp_pointer(
@@ -105,6 +137,37 @@ impl X11Backend {
         self.conn.flush().context("flush X11 connection")?;
         Ok(())
     }
+}
+
+fn raw_motion_delta(event: &RawMotionEvent) -> RawMotion {
+    RawMotion {
+        dx: valuator_value(event, 0).unwrap_or_default(),
+        dy: valuator_value(event, 1).unwrap_or_default(),
+    }
+}
+
+fn valuator_value(event: &RawMotionEvent, axis: usize) -> Option<f64> {
+    let mut value_index = 0usize;
+
+    for (mask_index, mask) in event.valuator_mask.iter().enumerate() {
+        for bit in 0..32 {
+            let axis_index = mask_index * 32 + bit;
+            if mask & (1_u32 << bit) == 0 {
+                continue;
+            }
+
+            if axis_index == axis {
+                return event.axisvalues_raw.get(value_index).map(fp3232_to_f64);
+            }
+            value_index += 1;
+        }
+    }
+
+    None
+}
+
+fn fp3232_to_f64(value: &Fp3232) -> f64 {
+    value.integral as f64 + value.frac as f64 / 4_294_967_296.0
 }
 
 fn has_button_down(mask: KeyButMask) -> bool {

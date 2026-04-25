@@ -21,6 +21,12 @@ impl PointerState {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RawMotion {
+    pub dx: f64,
+    pub dy: f64,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Monitor {
     pub name: String,
