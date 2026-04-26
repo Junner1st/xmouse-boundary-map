@@ -4,8 +4,13 @@ X11 monitor boundary mapper for GNOME Shell/X11. It maps pointer crossings betwe
 
 ## Build
 
+Install a requirement
 ```bash
 cargo install cargo-deb
+```
+
+build method
+```bash
 cargo deb
 ```
 

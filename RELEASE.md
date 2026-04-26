@@ -19,6 +19,13 @@ target/debian/xmouse-boundary-map_<version>-1_amd64.deb
 sudo apt install ./target/debian/xmouse-boundary-map_<version>-1_amd64.deb
 ```
 
+When removing the package, the Debian maintainer scripts stop and disable the
+active systemd user service before the unit file is removed:
+
+```bash
+sudo apt remove xmouse-boundary-map
+```
+
 ## Run
 
 ```bash
@@ -53,3 +60,4 @@ systemctl --user restart xmouse-boundary-map.service
 2. Run `cargo test`.
 3. Run `cargo deb`.
 4. Test install the generated `.deb`.
+5. Test `sudo apt remove xmouse-boundary-map` stops the user service.

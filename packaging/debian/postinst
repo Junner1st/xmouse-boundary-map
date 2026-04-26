@@ -1,0 +1,26 @@
+#!/bin/sh
+set -e
+
+run_for_user_managers() {
+    for runtime_dir in /run/user/[0-9]*; do
+        [ -d "$runtime_dir" ] || continue
+        uid="${runtime_dir##*/}"
+        [ -S "$runtime_dir/bus" ] || continue
+
+        user="$(getent passwd "$uid" | cut -d: -f1)"
+        [ -n "$user" ] || continue
+
+        runuser -u "$user" -- env \
+            XDG_RUNTIME_DIR="$runtime_dir" \
+            DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_dir/bus" \
+            systemctl --user "$@" >/dev/null 2>&1 || true
+    done
+}
+
+case "$1" in
+    configure)
+        run_for_user_managers daemon-reload
+        ;;
+esac
+
+exit 0

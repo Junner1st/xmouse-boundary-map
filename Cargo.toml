@@ -28,6 +28,7 @@ where X11 normally blocks the cursor outside the smaller monitor range.
 depends = "$auto"
 section = "utils"
 priority = "optional"
+maintainer-scripts = "packaging/debian"
 assets = [
     ["target/release/xmouse-boundary-map", "usr/bin/", "755"],
     ["README.md", "usr/share/doc/xmouse-boundary-map/README.md", "644"],
