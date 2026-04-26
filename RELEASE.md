@@ -19,6 +19,9 @@ target/debian/xmouse-boundary-map_<version>-1_amd64.deb
 sudo apt install ./target/debian/xmouse-boundary-map_<version>-1_amd64.deb
 ```
 
+The package enables the systemd user service globally and starts it for active
+user sessions during install.
+
 When removing the package, the Debian maintainer scripts stop and disable the
 active systemd user service before the unit file is removed:
 
@@ -32,7 +35,8 @@ sudo apt remove xmouse-boundary-map
 xmouse-boundary-map
 ```
 
-Or enable the systemd user service:
+The package should enable and start the systemd user service automatically.
+To do it manually:
 
 ```bash
 systemctl --user daemon-reload
@@ -59,5 +63,5 @@ systemctl --user restart xmouse-boundary-map.service
 1. Update `version` in `Cargo.toml`.
 2. Run `cargo test`.
 3. Run `cargo deb`.
-4. Test install the generated `.deb`.
+4. Test install the generated `.deb` starts and enables the user service.
 5. Test `sudo apt remove xmouse-boundary-map` stops the user service.

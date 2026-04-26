@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+SERVICE="xmouse-boundary-map.service"
+
 run_for_user_managers() {
     for runtime_dir in /run/user/[0-9]*; do
         [ -d "$runtime_dir" ] || continue
@@ -19,7 +21,9 @@ run_for_user_managers() {
 
 case "$1" in
     configure)
+        systemctl --global enable "$SERVICE" >/dev/null 2>&1 || true
         run_for_user_managers daemon-reload
+        run_for_user_managers start "$SERVICE"
         ;;
 esac
 
