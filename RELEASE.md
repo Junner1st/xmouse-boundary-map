@@ -43,6 +43,19 @@ systemctl --user daemon-reload
 systemctl --user enable --now xmouse-boundary-map.service
 ```
 
+Stop or disable the running service for the current user without `sudo`:
+
+```bash
+systemctl --user stop xmouse-boundary-map.service
+systemctl --user disable --now xmouse-boundary-map.service
+```
+
+Disable the global user-service default for future logins:
+
+```bash
+sudo systemctl --global disable xmouse-boundary-map.service
+```
+
 This is a user service installed at `/usr/lib/systemd/user/xmouse-boundary-map.service`,
 so inspect it with `systemctl --user`, not system-wide `systemctl`:
 

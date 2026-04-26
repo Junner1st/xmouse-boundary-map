@@ -52,6 +52,19 @@ If the service is not running, start it manually:
 systemctl --user enable --now xmouse-boundary-map.service
 ```
 
+Stop or disable it for the current user without `sudo`:
+
+```bash
+systemctl --user stop xmouse-boundary-map.service
+systemctl --user disable --now xmouse-boundary-map.service
+```
+
+Disable the package's global user-service default for future logins:
+
+```bash
+sudo systemctl --global disable xmouse-boundary-map.service
+```
+
 If the service cannot see X11, import the session environment and restart it:
 
 ```bash
