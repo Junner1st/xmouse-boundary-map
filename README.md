@@ -30,6 +30,25 @@ Adjacent monitors are auto-mapped by relative height. XInput2 raw motion is used
 cargo run --
 ```
 
+Installed packages can run it as a systemd user service:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now xmouse-boundary-map.service
+systemctl --user status xmouse-boundary-map.service
+```
+
+The package installs a user unit, not a system unit, because the daemon needs
+the logged-in X11 session. Use `systemctl --user ...`; plain
+`systemctl status xmouse-boundary-map.service` will not find it.
+
+If the service cannot see X11, import the session environment and restart it:
+
+```bash
+systemctl --user import-environment DISPLAY XAUTHORITY XDG_SESSION_TYPE
+systemctl --user restart xmouse-boundary-map.service
+```
+
 Use `RUST_LOG=debug` for warp logs:
 
 ```bash

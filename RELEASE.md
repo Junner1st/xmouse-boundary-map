@@ -25,10 +25,19 @@ sudo apt install ./target/debian/xmouse-boundary-map_<version>-1_amd64.deb
 xmouse-boundary-map
 ```
 
-Or enable the user service:
+Or enable the systemd user service:
 
 ```bash
+systemctl --user daemon-reload
 systemctl --user enable --now xmouse-boundary-map.service
+```
+
+This is a user service installed at `/usr/lib/systemd/user/xmouse-boundary-map.service`,
+so inspect it with `systemctl --user`, not system-wide `systemctl`:
+
+```bash
+systemctl --user status xmouse-boundary-map.service
+journalctl --user -u xmouse-boundary-map.service -f
 ```
 
 If the service cannot see X11:
