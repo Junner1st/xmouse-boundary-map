@@ -2,6 +2,9 @@
 name = "xmouse-boundary-map"
 version = "0.1.0"
 edition = "2024"
+description = "X11 monitor boundary mouse mapper for differently sized displays"
+license = "GPL-3.0-only"
+readme = "README.md"
 
 [dependencies]
 anyhow = "1.0"
@@ -11,3 +14,23 @@ toml = "0.8"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 x11rb = { version = "0.13", features = ["randr", "xinput"] }
+
+[package.metadata.deb]
+maintainer = "Linux LittleBigMouse Maintainers"
+copyright = "2026 Linux LittleBigMouse contributors"
+license-file = ["LICENSE", "0"]
+extended-description = """
+xmouse-boundary-map is a small X11 daemon for GNOME Shell/X11 systems.
+It maps pointer crossings between horizontally adjacent monitors with
+different resolutions, including high-resolution to low-resolution edges
+where X11 normally blocks the cursor outside the smaller monitor range.
+"""
+depends = "$auto"
+section = "utils"
+priority = "optional"
+assets = [
+    ["target/release/xmouse-boundary-map", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/xmouse-boundary-map/README.md", "644"],
+    ["example-config.toml", "usr/share/doc/xmouse-boundary-map/example-config.toml", "644"],
+    ["packaging/systemd/user/xmouse-boundary-map.service", "usr/lib/systemd/user/xmouse-boundary-map.service", "644"],
+]

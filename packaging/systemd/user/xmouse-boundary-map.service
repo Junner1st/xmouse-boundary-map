@@ -1,0 +1,15 @@
+[Unit]
+Description=X11 mouse boundary mapper
+Documentation=file:/usr/share/doc/xmouse-boundary-map/README.md
+After=graphical-session.target
+PartOf=graphical-session.target
+ConditionEnvironment=DISPLAY
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/xmouse-boundary-map
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

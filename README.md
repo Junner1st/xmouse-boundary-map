@@ -14,6 +14,13 @@ y_to = (y_from - from.y) / from.height * to.height + to.y
 cargo build --release
 ```
 
+Debian packaging is documented in [RELEASE.md](RELEASE.md). The short version is:
+
+```bash
+cargo install cargo-deb
+PATH="$HOME/.cargo/bin:$PATH" cargo deb
+```
+
 ## Check Monitor Names
 
 ```bash
