@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, trace, warn};
 use tracing_subscriber::EnvFilter;
 
 use crate::config::AppConfig;
@@ -17,7 +17,10 @@ use crate::mapper::{BoundaryMapper, MapOutcome};
 use crate::x11_backend::X11Backend;
 
 #[derive(Debug, Parser)]
-#[command(version, about = "Map pointer crossings between differently sized X11 monitors")]
+#[command(
+    version,
+    about = "Map pointer crossings between differently sized X11 monitors"
+)]
 struct Cli {
     /// TOML config path. If omitted, adjacent horizontal monitors are auto-mapped.
     #[arg(short, long)]
@@ -30,10 +33,6 @@ struct Cli {
     /// Override poll interval in milliseconds.
     #[arg(long)]
     poll_ms: Option<u64>,
-
-    /// Allow warping while mouse buttons are held. Default is to ignore drag.
-    #[arg(long)]
-    map_drag: bool,
 
     /// Log intended warps without moving the pointer.
     #[arg(long)]
@@ -48,10 +47,6 @@ fn main() -> Result<()> {
     if let Some(poll_ms) = cli.poll_ms {
         config.poll_interval_ms = poll_ms;
     }
-    if cli.map_drag {
-        config.ignore_drag = false;
-    }
-
     let backend = X11Backend::connect().context("connect to X11")?;
     let monitors = backend.monitors().context("read XRandR monitor layout")?;
 
@@ -123,14 +118,16 @@ fn run_polling_loop(
             }
         };
 
-        let allow_drag = !config.ignore_drag || !pointer.buttons_down;
-        if !allow_drag {
-            previous = pointer;
-            continue;
-        }
-
         let outcome = mapper.map_crossing(&previous, &pointer);
-        previous = handle_outcome(backend, config, dry_run, pointer, outcome, &mut last_warp);
+        previous = handle_outcome(
+            backend,
+            config,
+            dry_run,
+            pointer,
+            outcome,
+            None,
+            &mut last_warp,
+        );
     }
 }
 
@@ -140,14 +137,17 @@ fn run_raw_motion_loop(
     config: &AppConfig,
     dry_run: bool,
 ) -> Result<()> {
+    let poll_interval = Duration::from_millis(config.poll_interval_ms.max(1));
     let mut previous = backend.query_pointer().context("read initial pointer")?;
     let mut last_warp = Instant::now() - config.warp_cooldown();
 
     loop {
-        let motion = match backend.wait_raw_motion() {
+        thread::sleep(poll_interval);
+
+        let raw_motion = match backend.poll_raw_motion() {
             Ok(motion) => motion,
             Err(error) => {
-                warn!(?error, "failed to read raw motion");
+                warn!(?error, "failed to poll raw motion");
                 continue;
             }
         };
@@ -160,16 +160,29 @@ fn run_raw_motion_loop(
             }
         };
 
-        let allow_drag = !config.ignore_drag || !pointer.buttons_down;
-        if !allow_drag {
-            previous = pointer;
-            continue;
-        }
+        let motion_source = if raw_motion.is_some() { "raw" } else { "poll" };
+        let motion = raw_motion.unwrap_or(crate::geometry::RawMotion {
+            dx: f64::from(pointer.position.x - previous.position.x),
+            dy: f64::from(pointer.position.y - previous.position.y),
+            device_id: 0,
+        });
 
         let outcome = match mapper.map_blocked_motion(&pointer, motion) {
             MapOutcome::Warp(target) => MapOutcome::Warp(target),
             MapOutcome::Noop => mapper.map_crossing(&previous, &pointer),
         };
+        trace!(
+            source = motion_source,
+            device_id = motion.device_id,
+            dx = motion.dx,
+            dy = motion.dy,
+            previous_x = previous.position.x,
+            previous_y = previous.position.y,
+            pointer_x = pointer.position.x,
+            pointer_y = pointer.position.y,
+            ?outcome,
+            "motion sample"
+        );
 
         previous = handle_outcome(
             backend,
@@ -177,6 +190,7 @@ fn run_raw_motion_loop(
             dry_run,
             pointer,
             outcome,
+            raw_motion.map(|motion| motion.device_id),
             &mut last_warp,
         );
     }
@@ -188,17 +202,18 @@ fn handle_outcome(
     dry_run: bool,
     pointer: crate::geometry::PointerState,
     outcome: MapOutcome,
+    device_id: Option<u16>,
     last_warp: &mut Instant,
 ) -> crate::geometry::PointerState {
     match outcome {
         MapOutcome::Warp(target) if last_warp.elapsed() >= config.warp_cooldown() => {
             if dry_run {
                 info!("dry-run warp to {},{}", target.x, target.y);
-            } else if let Err(error) = backend.warp_pointer(target) {
+            } else if let Err(error) = backend.warp_pointer(target, device_id) {
                 warn!(?error, "failed to warp pointer");
                 return pointer;
             } else {
-                debug!("warped pointer to {},{}", target.x, target.y);
+                debug!(?device_id, "warped pointer to {},{}", target.x, target.y);
             }
             *last_warp = Instant::now();
             pointer.with_position(target)

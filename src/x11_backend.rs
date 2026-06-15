@@ -1,13 +1,14 @@
 use anyhow::{Context, Result};
+use tracing::debug;
+use x11rb::NONE;
 use x11rb::connection::Connection;
 use x11rb::protocol::Event;
 use x11rb::protocol::randr::{Connection as RandrConnection, ConnectionExt as RandrExt};
-use x11rb::protocol::xproto::{ConnectionExt as XprotoExt, KeyButMask};
 use x11rb::protocol::xinput::{
-    ConnectionExt as XinputExt, Device, EventMask, Fp3232, RawMotionEvent, XIEventMask,
+    ConnectionExt as XinputExt, Device, EventMask, Fp1616, Fp3232, RawMotionEvent, XIEventMask,
 };
+use x11rb::protocol::xproto::ConnectionExt as XprotoExt;
 use x11rb::rust_connection::RustConnection;
-use x11rb::NONE;
 
 use crate::geometry::{Monitor, Point, PointerState, RawMotion};
 
@@ -88,7 +89,6 @@ impl X11Backend {
                 x: i32::from(reply.root_x),
                 y: i32::from(reply.root_y),
             },
-            buttons_down: has_button_down(reply.mask),
         })
     }
 
@@ -111,16 +111,52 @@ impl X11Backend {
         Ok(())
     }
 
-    pub fn wait_raw_motion(&self) -> Result<RawMotion> {
-        loop {
-            let event = self.conn.wait_for_event().context("wait for X11 event")?;
+    pub fn poll_raw_motion(&self) -> Result<Option<RawMotion>> {
+        let mut motion = None;
+        while let Some(event) = self.conn.poll_for_event().context("poll X11 event")? {
             if let Event::XinputRawMotion(event) = event {
-                return Ok(raw_motion_delta(&event));
+                motion = Some(raw_motion_delta(&event));
             }
         }
+        Ok(motion)
     }
 
-    pub fn warp_pointer(&self, point: Point) -> Result<()> {
+    pub fn warp_pointer(&self, point: Point, device_id: Option<u16>) -> Result<()> {
+        if let Some(device_id) = device_id {
+            match self.warp_pointer_xinput2(point, device_id) {
+                Ok(()) => return Ok(()),
+                Err(error) => {
+                    debug!(
+                        ?error,
+                        device_id, "XInput2 warp failed; falling back to core warp"
+                    );
+                }
+            }
+        }
+
+        self.warp_pointer_core(point)
+    }
+
+    fn warp_pointer_xinput2(&self, point: Point, device_id: u16) -> Result<()> {
+        self.conn
+            .xinput_xi_warp_pointer(
+                NONE,
+                self.root,
+                0,
+                0,
+                0,
+                0,
+                fp1616(point.x)?,
+                fp1616(point.y)?,
+                device_id,
+            )?
+            .check()
+            .context("warp pointer with XInput2")?;
+        self.conn.flush().context("flush X11 connection")?;
+        Ok(())
+    }
+
+    fn warp_pointer_core(&self, point: Point) -> Result<()> {
         self.conn
             .warp_pointer(
                 NONE,
@@ -139,10 +175,17 @@ impl X11Backend {
     }
 }
 
+fn fp1616(value: i32) -> Result<Fp1616> {
+    value
+        .checked_mul(65_536)
+        .context("target coordinate is outside XInput2 16.16 range")
+}
+
 fn raw_motion_delta(event: &RawMotionEvent) -> RawMotion {
     RawMotion {
         dx: valuator_value(event, 0).unwrap_or_default(),
         dy: valuator_value(event, 1).unwrap_or_default(),
+        device_id: event.deviceid,
     }
 }
 
@@ -168,17 +211,6 @@ fn valuator_value(event: &RawMotionEvent, axis: usize) -> Option<f64> {
 
 fn fp3232_to_f64(value: &Fp3232) -> f64 {
     value.integral as f64 + value.frac as f64 / 4_294_967_296.0
-}
-
-fn has_button_down(mask: KeyButMask) -> bool {
-    let raw = u16::from(mask);
-    let buttons = u16::from(KeyButMask::BUTTON1)
-        | u16::from(KeyButMask::BUTTON2)
-        | u16::from(KeyButMask::BUTTON3)
-        | u16::from(KeyButMask::BUTTON4)
-        | u16::from(KeyButMask::BUTTON5);
-
-    raw & buttons != 0
 }
 
 fn nonzero_u32_to_i32(value: u32) -> Option<i32> {

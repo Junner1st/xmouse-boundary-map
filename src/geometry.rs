@@ -9,15 +9,11 @@ pub struct Point {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PointerState {
     pub position: Point,
-    pub buttons_down: bool,
 }
 
 impl PointerState {
     pub fn with_position(&self, position: Point) -> Self {
-        Self {
-            position,
-            buttons_down: self.buttons_down,
-        }
+        Self { position }
     }
 }
 
@@ -25,6 +21,7 @@ impl PointerState {
 pub struct RawMotion {
     pub dx: f64,
     pub dy: f64,
+    pub device_id: u16,
 }
 
 #[derive(Debug, Clone, PartialEq)]

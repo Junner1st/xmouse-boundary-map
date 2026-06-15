@@ -1,6 +1,6 @@
 [package]
 name = "xmouse-boundary-map"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 description = "X11 monitor boundary mouse mapper for differently sized displays"
 license = "GPL-3.0-only"

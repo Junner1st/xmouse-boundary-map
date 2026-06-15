@@ -2,32 +2,13 @@
 
 X11 monitor boundary mapper for GNOME Shell/X11. It maps pointer crossings between horizontally adjacent monitors with different resolutions.
 
-## Build
+## Install
 
-Install a requirement
-```bash
-cargo install cargo-deb
-```
-
-build method
-```bash
-cargo deb
-```
-
-## Check Monitor Names
+Download the Debian package from a release build, then install it:
 
 ```bash
-cargo run -- --list-monitors
+sudo apt install xmouse-boundary-map_1.0.0-1_amd64.deb
 ```
-
-Example:
-
-```text
-DP-1: 3840x2160+0+0
-HDMI-1: 1920x1080+3840+0
-```
-
-Adjacent monitors are auto-mapped by relative height. XInput2 raw motion is used so high-to-low resolution edges work even when X11 blocks the pointer at the larger monitor edge.
 
 ## Run
 
@@ -35,15 +16,13 @@ Adjacent monitors are auto-mapped by relative height. XInput2 raw motion is used
 cargo run --
 ```
 
-Installed packages enable the systemd user service globally and start it for
-active user sessions automatically. Check it with:
+Installed packages enable the systemd user service globally and start it for active user sessions automatically. Check it with:
 
 ```bash
 systemctl --user status xmouse-boundary-map.service
 ```
 
-The package installs a user unit, not a system unit, because the daemon needs
-the logged-in X11 session. Use `systemctl --user ...`; plain
+The package installs a user unit, not a system unit, because the daemon needs the logged-in X11 session. Use `systemctl --user ...`; plain
 `systemctl status xmouse-boundary-map.service` will not find it.
 
 If the service is not running, start it manually:
@@ -78,7 +57,7 @@ Use `RUST_LOG=debug` for warp logs:
 RUST_LOG=debug cargo run --
 ```
 
-Mapping is disabled while dragging by default. Use `--map-drag` to allow drag-time warps.
+Mapping remains active while dragging windows or holding mouse buttons.
 
 ## Config
 
@@ -89,3 +68,50 @@ cargo run -- --config example-config.toml
 ```
 
 Set `from` and `to` to the monitor names printed by `--list-monitors`.
+
+## Build
+
+Install the package builder:
+
+```bash
+cargo install cargo-deb
+```
+
+Build the Debian package:
+
+```bash
+cargo deb
+```
+
+Install the package you built locally:
+
+```bash
+sudo apt install ./target/debian/xmouse-boundary-map_1.0.0-1_amd64.deb
+```
+
+If you already installed it, you need a reinstall.
+
+```bash
+sudo apt install --reinstall ./target/debian/xmouse-boundary-map_1.0.0-1_amd64.deb
+```
+
+Restart the service.
+
+```bash
+systemctl --user restart xmouse-boundary-map.service
+```
+
+## Check Monitor Names
+
+```bash
+cargo run -- --list-monitors
+```
+
+Example:
+
+```text
+DP-1: 3840x2160+0+0
+HDMI-1: 1920x1080+3840+0
+```
+
+Adjacent monitors are auto-mapped by relative height. XInput2 raw motion is used so high-to-low resolution edges work even when X11 blocks the pointer at the larger monitor edge.

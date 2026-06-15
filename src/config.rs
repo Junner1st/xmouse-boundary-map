@@ -13,8 +13,6 @@ pub struct AppConfig {
     pub poll_interval_ms: u64,
     #[serde(default = "default_warp_cooldown_ms")]
     pub warp_cooldown_ms: u64,
-    #[serde(default = "default_ignore_drag")]
-    pub ignore_drag: bool,
     #[serde(default)]
     pub edge: Vec<EdgeConfig>,
 }
@@ -64,7 +62,6 @@ impl Default for AppConfig {
         Self {
             poll_interval_ms: default_poll_interval_ms(),
             warp_cooldown_ms: default_warp_cooldown_ms(),
-            ignore_drag: default_ignore_drag(),
             edge: Vec::new(),
         }
     }
@@ -76,8 +73,4 @@ fn default_poll_interval_ms() -> u64 {
 
 fn default_warp_cooldown_ms() -> u64 {
     50
-}
-
-fn default_ignore_drag() -> bool {
-    true
 }

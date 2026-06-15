@@ -219,7 +219,9 @@ fn crossed_empty_space_edge<'a>(
         return None;
     };
 
-    edges.iter().find(|edge| edge.from == from.name && edge.side == side)
+    edges
+        .iter()
+        .find(|edge| edge.from == from.name && edge.side == side)
 }
 
 impl Side {
@@ -260,11 +262,9 @@ mod tests {
         let outcome = mapper.map_crossing(
             &PointerState {
                 position: Point { x: 3839, y: 1620 },
-                buttons_down: false,
             },
             &PointerState {
                 position: Point { x: 3840, y: 1620 },
-                buttons_down: false,
             },
         );
 
@@ -284,11 +284,9 @@ mod tests {
         let outcome = mapper.map_crossing(
             &PointerState {
                 position: Point { x: 3840, y: 810 },
-                buttons_down: false,
             },
             &PointerState {
                 position: Point { x: 3839, y: 810 },
-                buttons_down: false,
             },
         );
 
@@ -308,11 +306,9 @@ mod tests {
         let outcome = mapper.map_crossing(
             &PointerState {
                 position: Point { x: 100, y: 100 },
-                buttons_down: false,
             },
             &PointerState {
                 position: Point { x: 110, y: 110 },
-                buttons_down: false,
             },
         );
 
@@ -332,9 +328,12 @@ mod tests {
         let outcome = mapper.map_blocked_motion(
             &PointerState {
                 position: Point { x: 3839, y: 1620 },
-                buttons_down: false,
             },
-            RawMotion { dx: 3.0, dy: 0.0 },
+            RawMotion {
+                dx: 3.0,
+                dy: 0.0,
+                device_id: 2,
+            },
         );
 
         assert_eq!(outcome, MapOutcome::Warp(Point { x: 3840, y: 810 }));
